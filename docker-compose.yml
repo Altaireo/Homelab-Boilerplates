@@ -1,0 +1,48 @@
+version: "2.1"
+
+services:
+  wireguard:
+    image: linuxserver/wireguard:latest
+    container_name: wireguard
+
+    restart: unless-stopped
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+
+    # Network only needed if you want to use pihole while connected to the WireGuard VPN.
+    networks:
+      wireguard-pihole:
+        ipv4_address: 172.20.0.3
+    ports:
+      - 51820:51820/udp
+
+    volumes:
+      - </path/to/host/config>:/config
+      - /lib/modules:/lib/modules
+    environment:
+      - PUID=<$ id -u>
+      - PGID=<$ id -g>
+      - TZ=Europe/Brussels
+      - SERVERURL=<wildcard.domain.example>
+      - SERVERPORT=51820
+      #- PEERS=desktop,laptop
+      - PEERS=1
+      - PEERDNS=172.20.0.2
+      #- PEERDNS=auto
+      - INTERNAL_SUBNET=10.13.13.0
+      - ALLOWEDIPS=0.0.0.0/0,::/0
+      - LOG_CONFS=true
+
+# Network only needed if you want to use pihole while connected to the WireGuard VPN.
+networks:
+   wireguard-pihole:
+     name: "wireguard-pihole"
+     driver: bridge
+     ipam:
+       driver: default
+       config:
+         - subnet: 172.20.0.0/24
