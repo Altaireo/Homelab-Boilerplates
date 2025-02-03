@@ -1,0 +1,105 @@
+#+title: Pi-hole
+#+property: header-args :tangle docker-compose.yml
+
+A black hole for Internet Advertisements.
+
+** Docker-compose.yml
+*** Docker Image
+
+- Docker Service Name = pihole
+- Image: Specify the docker image. No version behind the colon so it will use the latest version.
+- Container_name: Name that will be given to the container. If not stated, this will be randomized.
+
+#+begin_src yaml
+version: '3'
+
+services:
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+#+end_src
+
+*** General
+
+- Restart: The container will always try to restart unless it is manually stopped by the user.
+- Cap_add: Enable if no dns found in container.
+
+#+begin_src yaml
+    restart: unless-stopped
+    #cap_add:
+      #- NET_ADMIN
+#+end_src
+
+*** Network
+
+- Networks: Setting up a network that can be accessed by Pihole and WireGuard.
+  - This is useful if you want to use Pihole while connected to your VPN.
+  - Setting a static-ip so it can be reference in the WireGuard docker-compose.yml file.
+- Ports: Used for Pi-hole
+- Dns: Set DNS of container. This should solve the issue if pi-hole complains about not finding dns.
+
+#+begin_src yaml
+    # Network only needed if you want to use pihole while connected to the WireGuard VPN.
+    networks:
+      wireguard-pihole:
+        ipv4_address: 172.20.0.2
+    ports:
+      - 53:53/udp
+      - 53:53/tcp
+      - 67:67/udp
+      - 80:80/tcp
+      - 443:443/tcp
+    #dns:
+      #- 1.1.1.1
+      #- 1.0.0.1
+#+end_src
+
+*** Variables
+
+- Volumes: Multiple volumes need to be passed trough or keep locally. Left volume is a local directory or file. Right volume is a direcotry or file inside the container.
+- Environment:
+  - Timezone
+  - Password for the web dashboard
+
+#+begin_src yaml
+    volumes:
+      - <path/to/host/pihole>:/etc/pihole
+      - <path/to/host/dnsmasq.d>:/etc/dnsmasq.d
+    environment:
+      - TZ=Europe/Brussels
+      - WEBPASSWORD=password
+#+end_src
+
+*** Declared Network
+
+- Create (if it does not exist) a network that can be used by Pihole and WireGuard
+  - This is useful if you want to use Pihole while connected to your VPN.
+
+#+begin_src yaml
+# Network only needed if you want to use pihole while connected to the WireGuard VPN.
+networks:
+   wireguard-pihole:
+     name: "wireguard-pihole"
+     driver: bridge
+     ipam:
+       driver: default
+       config:
+         - subnet: 172.20.0.0/24
+#+end_src
+
+** Usage
+
+- Dashboard accessible at <host ip>/admin
+- Group Management: Add extra blocking lists under Adlists
+  - List can be found @ [[https://firebog.net]]
+- Settings:
+  - Set DNS ipv4 to Cloudflare (imo quickest and best)
+- Local DNS: Useful for locally hosted services
+  - Choose a domain and point it at correct ip.
+- On every device that you want adblocking, change the nameserver/dns to the ip device running Pi-hole.
+
+** Notes
+- If receiving an error trying to run with wireguard network
+  - ~# systemctl stop systemd-resolved && systemctl disable systemd-resolved~
+  - this is a "listen tcp 0.0.0.0:53: bind: address alraedy in use" error
+- Password can be changed without recreating in the container terminal: ~# pihole -a -p~
